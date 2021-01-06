@@ -204,7 +204,8 @@ export default {
     height: 100%;
     box-sizing: border-box;
 
-    border: min(0.8vw, 0.8vh) solid fade-out(black, 0.8);
+    border: solid fade-out(black, 0.8);
+    border-width: min(0.8vw, 0.8vh);
     border-radius: 50%;
     background-color: transparent;
   }

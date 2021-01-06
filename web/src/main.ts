@@ -27,7 +27,7 @@ function local_engine(board: Board) {
 
 function remote_engine(state: RemoteState): Engine {
     let socket: WebSocket;
-    let base = location.host == 'box:8080' ? 'ws://box:8081/' : 'wss://api.mfro.me/chess';
+    let base = location.host == 'box:8080' ? 'ws://box:8081/' : 'wss://api.mfro.me/chess/play';
 
     let code = window.location.hash.substr(1);
     if (code) {

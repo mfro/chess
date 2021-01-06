@@ -12,7 +12,7 @@ const rooms = new Map();
 const server = new WebSocket__default['default'].Server({
     port,
 });
-function game(a, b) {
+function game(code, a, b) {
     a.on('close', () => b.close());
     b.on('close', () => a.close());
     a.on('message', e => b.send(e));
@@ -32,7 +32,17 @@ server.on('connection', (socket, request) => {
         if (room == null)
             return socket.close();
         rooms.delete(code);
-        game(socket, room);
+        // if (room.length == 1) {
+        //     room.push({
+        //         socket,
+        //         color: room[0].color == 'w' ? 'b' : 'w',
+        //     });
+        // } else {
+        //     let rejoin = room.find(c => c.socket == null);
+        //     if (rejoin == null) return socket.close();
+        //     rejoin.socket = socket;
+        // }
+        game(code, room, socket);
     }
     else {
         code = Math.floor(Math.random() * 0x1000000).toString(16);
