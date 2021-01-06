@@ -22,7 +22,6 @@
     <board
       :color="room.local"
       :board="room.board"
-      :key="room.board"
       :last-move="lastMove"
       @move="onMove"
     />
@@ -30,7 +29,7 @@
 </template>
 
 <script >
-import { computed, inject, markRaw, ref } from 'vue';
+import { computed, inject, markRaw, onBeforeUpdate, ref, watch } from 'vue';
 
 import Board from './ui/board';
 import { Rules } from './chess';
@@ -77,11 +76,20 @@ export default {
       linkCopied.value = true;
     };
 
+    watch(() => room.board, () => {
+      lastMove.value = null;
+    });
+
     return {
       room, complete, lastMove,
       link, linkInput, copyLink, linkCopied,
 
-      onMove: m => engine.move(m),
+      onMove: m => {
+        if (room.status == 2 && room.local != room.board.next)
+          return;
+
+        engine.move(m)
+      },
     };
   },
 };

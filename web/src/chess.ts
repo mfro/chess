@@ -302,7 +302,7 @@ export namespace Move {
         }
 
         if (piece.kind == Piece.king) {
-            if (Math.abs(offset.ranks) + Math.abs(offset.files) == 1)
+            if (Math.abs(offset.ranks) <= 1 && Math.abs(offset.files) <= 1)
                 return true;
 
             if (Math.abs(offset.files) == 2 && Math.abs(offset.ranks) == 0) {
@@ -463,11 +463,11 @@ export namespace Move {
 
 export namespace Rules {
     export function check(board: Board): Color | null {
-        let white_king = [...board.pieces].find(p => p[1].kind == Piece.king && p[1].color == Color.white);
-        if (is_threatened(board, white_king![0], Color.white)) return Color.white;
-
-        let black_king = [...board.pieces].find(p => p[1].kind == Piece.king && p[1].color == Color.black);
-        if (is_threatened(board, black_king![0], Color.black)) return Color.black;
+        for (let color of [Color.white, Color.black] as const) {
+            let king = [...board.pieces].find(p => p[1].kind == Piece.king && p[1].color == color);
+            if (king == null) continue;
+            if (is_threatened(board, king[0], Color.white)) return color;
+        }
 
         return null;
     }
@@ -496,7 +496,7 @@ export namespace Rules {
 
     export function is_threatened(board: Board, pos: Position, victim: Color) {
         for (let [from, piece] of board.pieces) {
-            if (Move.is_valid(board, { from, to: pos }) && board.pieces.get(from)!.color != victim) {
+            if (piece.color != victim && Move.is_valid(board, { from, to: pos })) {
                 return true;
             }
         }

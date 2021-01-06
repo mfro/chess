@@ -38,6 +38,7 @@ function remote_engine(state: RemoteState): Engine {
         state.status = 0;
     }
 
+    let skip = false;
     socket.addEventListener('message', e => {
         if (state.status == 0) {
             state.code = e.data;
@@ -56,9 +57,9 @@ function remote_engine(state: RemoteState): Engine {
 
             let move = { from, to };
 
-            if (Move.is_legal(state.board, move)) {
-                Move.apply_move(state.board, move);
-            }
+            skip = true;
+            engine.move(move);
+            skip = false;
         }
     });
 
@@ -72,17 +73,15 @@ function remote_engine(state: RemoteState): Engine {
             if (!Move.is_legal(state.board, move))
                 return false;
 
-            if (state.status != 2 || state.local == state.board.next) {
+            if (!skip) {
                 socket.send(JSON.stringify({
                     from: `${move.from.file}${move.from.rank}`,
                     to: `${move.to.file}${move.to.rank}`,
                 }));
-
-                Move.apply_move(state.board, move);
-                return true;
             }
 
-            return false;
+            Move.apply_move(state.board, move);
+            return true;
         },
     };
 

@@ -1,5 +1,5 @@
 <template>
-  <div class="square" :class="[color, { active }]" />
+  <div class="square" :class="[color]" />
 </template>
 
 <script>
@@ -12,7 +12,6 @@ export default {
 
   props: {
     position: Object,
-    active: Boolean,
   },
 
   setup(props, { emit }) {

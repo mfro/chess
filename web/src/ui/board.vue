@@ -13,7 +13,7 @@
     @touchstart.prevent="onTouchStart"
   >
     <template v-for="square in squares" :key="square.file + square.rank">
-      <square :active="moving && square == hover" :position="square" />
+      <square :position="square" />
     </template>
 
     <position v-if="moving" :value="moving">
@@ -104,7 +104,11 @@ export default {
 
     let animate = ref(true);
 
-    let ordering = new Map([...props.board.pieces.values()].map((a, i) => [a, i]));
+    let ordering;
+    watch(() => props.board, () => {
+      ordering = new Map([...props.board.pieces.values()].map((a, i) => [a, i]));
+    }, { immediate: true });
+
     let pieces = computed(() => {
       let list = [...props.board.pieces];
       list.sort((a, b) => ordering.get(a[1]) - ordering.get(b[1]));
