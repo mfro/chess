@@ -1,4 +1,7 @@
 import { createApp, reactive } from 'vue'
+
+import { framework } from '@mfro/vue-ui';
+
 import main from './main.vue';
 
 import { Board, Color, Move, Position } from './chess';
@@ -99,6 +102,8 @@ let state: RemoteState = reactive({
 let engine = remote_engine(state);
 
 let app = createApp(main);
+
+app.use(framework);
 
 app.provide('room', state);
 app.provide('engine', engine);

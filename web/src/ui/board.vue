@@ -13,31 +13,15 @@
     @touchstart.prevent="onTouchStart"
   >
     <template v-for="square in squares" :key="square.file + square.rank">
-      <square :position="square" />
-    </template>
-
-    <position v-if="moving" :value="moving">
-      <div class="active-square" />
-    </position>
-
-    <position v-if="hover && moving != hover" :value="hover">
-      <div class="active-square" />
-    </position>
-
-    <template v-if="lastMove">
-      <position
-        :value="lastMove.from"
-        v-if="lastMove.from != moving && lastMove.from != hover"
-      >
-        <div class="active-square" />
-      </position>
-
-      <position
-        :value="lastMove.to"
-        v-if="lastMove.to != moving && lastMove.to != hover"
-      >
-        <div class="active-square" />
-      </position>
+      <square
+        :position="square"
+        :active="
+          square == moving ||
+          square == hover ||
+          square == lastMove?.from ||
+          square == lastMove?.to
+        "
+      />
     </template>
 
     <position
@@ -57,7 +41,7 @@
       <div class="legal-move" :class="{ take: board.pieces.has(pos) }" />
     </position>
 
-    <move-overlay :root="root" :moving="moving" :board="board" />
+    <grab-overlay :root="root" :moving="moving" :board="board" />
   </div>
 </template>
 
@@ -69,7 +53,7 @@ import { Color, Position, Rules } from '../chess';
 import piece from './piece';
 import square from './square';
 import position from './position';
-import moveOverlay from './move-overlay';
+import grabOverlay from './grab-overlay';
 
 export default {
   name: 'board',
@@ -77,7 +61,7 @@ export default {
     piece,
     square,
     position,
-    moveOverlay,
+    grabOverlay,
   },
 
   emits: ['move'],
@@ -91,6 +75,12 @@ export default {
     let root = ref(null);
 
     provide('color', toRef(props, 'color'));
+
+    let size = ref(Math.floor(Math.min(window.innerWidth, window.innerHeight) / 10));
+    provide('size', size);
+    window.addEventListener('resize', () => {
+      size.value = Math.floor(Math.min(window.innerWidth, window.innerHeight) / 10);
+    });
 
     let squares = computed(() => {
       let ranks = Position.by_rank.slice();
@@ -126,6 +116,9 @@ export default {
       if (props.color == Color.white)
         y = 7 - y;
 
+      if (x < 0 || x > 7 || y < 0 || y > 7)
+        return null;
+
       return Position.by_file[x][y];
     }
 
@@ -133,13 +126,12 @@ export default {
       moveDrag(x, y);
 
       let position = positionAt(x, y);
-
-      if (props.board.pieces.has(position))
+      if (position && props.board.pieces.has(position))
         moving.value = position;
     };
 
     let moveDrag = (x, y) => {
-      hover.value = moving.value && positionAt(x, y);
+      hover.value = positionAt(x, y);
     };
 
     let endDrag = (x, y) => {
@@ -148,7 +140,7 @@ export default {
       let position = positionAt(x, y);
 
       if (!moving.value) return;
-      if (moving.value != position) {
+      if (position && moving.value != position) {
         animate.value = false;
         setImmediate(() => animate.value = true);
 
@@ -179,6 +171,7 @@ export default {
 
 <style lang="scss" scoped>
 .board {
+  border: 10px solid white;
   position: relative;
   display: grid;
   grid-template: repeat(8, auto) / repeat(8, auto);
@@ -213,12 +206,6 @@ export default {
     border-radius: 50%;
     background-color: transparent;
   }
-}
-
-.active-square {
-  width: 100%;
-  height: 100%;
-  background-color: fade-out(#ffeb3b, 0.5);
 }
 
 .moving {

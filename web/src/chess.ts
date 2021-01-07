@@ -136,37 +136,8 @@ export namespace Piece {
         bishop = 'b',
         queen = 'q',
         king = 'k';
-    // function p(color: Color, kind: PieceKind): Piece {
-    // return Object.freeze({ color, kind });
-    // }
 
-    // export const
-    //     white_pawn = p('w', 'p'),
-    //     white_rook = p('w', 'r'),
-    //     white_knight = p('w', 'n'),
-    //     white_bishop = p('w', 'b'),
-    //     white_queen = p('w', 'q'),
-    //     white_king = p('w', 'k'),
-    //     black_pawn = p('b', 'p'),
-    //     black_rook = p('b', 'r'),
-    //     black_knight = p('b', 'n'),
-    //     black_bishop = p('b', 'b'),
-    //     black_queen = p('b', 'q'),
-    //     black_king = p('b', 'k');
-
-    // export const by_kind = new Map([
-    //     [Piece.pawn, { white: white_pawn, black: black_pawn }],
-    //     [Piece.rook, { white: white_rook, black: black_rook }],
-    //     [Piece.knight, { white: white_knight, black: black_knight }],
-    //     [Piece.bishop, { white: white_bishop, black: black_bishop }],
-    //     [Piece.queen, { white: white_queen, black: black_queen }],
-    //     [Piece.king, { white: white_king, black: black_king }],
-    // ]);
-
-    // export const by_color = new Map([
-    //     [Color.white, { pawn: white_pawn, rook: white_rook, knight: white_knight, bishop: white_bishop, queen: white_queen, king: white_king }],
-    //     [Color.black, { pawn: black_pawn, rook: black_rook, knight: black_knight, bishop: black_bishop, queen: black_queen, king: black_king }],
-    // ]);
+    export const all = [pawn, rook, knight, bishop, queen, king];
 }
 
 export interface Offset {
@@ -466,7 +437,7 @@ export namespace Rules {
         for (let color of [Color.white, Color.black] as const) {
             let king = [...board.pieces].find(p => p[1].kind == Piece.king && p[1].color == color);
             if (king == null) continue;
-            if (is_threatened(board, king[0], Color.white)) return color;
+            if (is_threatened(board, king[0], color)) return color;
         }
 
         return null;
@@ -502,3 +473,26 @@ export namespace Rules {
         }
     }
 }
+
+
+Object.assign(window, {
+    devtoolsFormatters: [
+        {
+            header(o: any) {
+                if (Position.all.includes(o))
+                    return ['span', {}, `${(o as Position).file}${(o as Position).rank}`];
+
+                if ('color' in o && 'kind' in o)
+                    return ['span', {}, `${(o as Piece).color}${(o as Piece).kind}`];
+            },
+
+            hasBody(o: any) {
+                if (Position.all.includes(o))
+                    return false;
+
+                if ('color' in o && 'kind' in o)
+                    return false;
+            },
+        }
+    ],
+})

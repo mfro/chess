@@ -1,23 +1,32 @@
 <template>
-  <div>
-    <div class="room-info">
+  <v-app align-center>
+    <v-flex align-center justify-center class="ma-4">
       <template v-if="room.status == 1">
-        <button
-          class="material-icons"
-          @click="copyLink()"
-          @mouseleave="linkCopied = false"
-        >
-          <span v-if="linkCopied">check</span>
-          <template v-else>content_paste</template>
-        </button>
+        <v-button icon @click="copyLink()" @mouseleave="linkCopied = false">
+          <v-icon v-if="!linkCopied">content_paste</v-icon>
+          <v-icon v-else bold style="color: #4caf50">check</v-icon>
+        </v-button>
 
-        <input ref="linkInput" type="text" :value="link" />
+        <v-text-field
+          class="mt-0 ml-4"
+          ref="linkInput"
+          solo
+          :modelValue="link"
+        />
       </template>
 
-      <template v-else-if="room.status == 2 && complete">
-        <button @click="room.restart()">new game</button>
+      <template v-else-if="room.status == 2 && result">
+        <v-text title class="mr-4">
+          <span v-if="result == 'statemate'">Stalemate</span>
+          <span v-else-if="result == 'w'">Black wins</span>
+          <span v-else-if="result == 'b'">White wins</span>
+        </v-text>
+
+        <v-button color="primary" @click="room.restart()">
+          <span>new game</span>
+        </v-button>
       </template>
-    </div>
+    </v-flex>
 
     <board
       :color="room.local"
@@ -25,7 +34,7 @@
       :last-move="lastMove"
       @move="onMove"
     />
-  </div>
+  </v-app>
 </template>
 
 <script >
@@ -55,7 +64,12 @@ export default {
     let room = inject('room');
     let engine = inject('engine');
 
-    let complete = computed(() => Rules.all_legal_moves(room.board).size == 0);
+    let result = computed(() => {
+      if (Rules.all_legal_moves(room.board).size > 0)
+        return null;
+
+      return Rules.check(room.board) ?? 'statemate';
+    });
 
     let lastMove = ref(null);
 
@@ -81,7 +95,7 @@ export default {
     });
 
     return {
-      room, complete, lastMove,
+      room, result, lastMove,
       link, linkInput, copyLink, linkCopied,
 
       onMove: m => {
@@ -111,26 +125,4 @@ body {
 </style>
 
 <style lang="scss" scoped>
-.link {
-  user-select: all;
-}
-
-.room-info {
-  margin: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  input {
-    margin: 0 8px 0;
-  }
-
-  span {
-    color: #4caf50;
-    font-weight: bold;
-    font-size: 32px;
-    margin: -4px;
-    display: block;
-  }
-}
 </style>

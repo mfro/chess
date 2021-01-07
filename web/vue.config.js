@@ -18,4 +18,10 @@ module.exports = {
             ignored: /node_modules/,
         },
     },
+
+    configureWebpack: {
+        resolve: {
+            symlinks: false,
+        },
+    },
 };

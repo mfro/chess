@@ -17,21 +17,25 @@ export default {
   },
 
   setup(props) {
+    let size = inject('size');
+
     let color = inject('color');
 
-    let style = computed(() => {
-      let y = Position.ranks.indexOf(props.value.rank);
-      let x = Position.files.indexOf(props.value.file);
+    return {
+      style: computed(() => {
+        let y = Position.ranks.indexOf(props.value.rank);
+        let x = Position.files.indexOf(props.value.file);
 
-      if (color.value == Color.white)
-        y = 7 - y;
+        if (color.value == Color.white)
+          y = 7 - y;
 
-      return {
-        transform: `translate(${x * 100}%, ${y * 100}%)`,
-      }
-    });
-
-    return { style };
+        return {
+          width: `${size.value}px`,
+          height: `${size.value}px`,
+          transform: `translate(${x * 100}%, ${y * 100}%)`,
+        }
+      })
+    };
   },
 };
 </script>
@@ -39,8 +43,6 @@ export default {
 <style scoped lang="scss">
 .position {
   position: absolute;
-  width: min(10vw, 10vh);
-  height: min(10vw, 10vh);
 
   &.live {
     will-change: transform;

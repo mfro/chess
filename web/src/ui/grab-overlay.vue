@@ -1,5 +1,5 @@
 <template>
-  <div class="move-overlay" :style="style">
+  <div class="grab-overlay" :style="style">
     <piece v-if="moving" :value="board.pieces.get(moving)" />
   </div>
 </template>
@@ -42,7 +42,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.move-overlay {
+.grab-overlay {
   position: absolute;
   transform: translate(-50%, -50%);
 }

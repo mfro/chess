@@ -1,13 +1,26 @@
 <template>
-  <div class="piece" :class="value.color + value.kind" />
+  <div class="piece" :style="style" :class="value.color + value.kind" />
 </template>
 
 <script>
+import { computed, inject } from 'vue';
+
 export default {
   name: 'piece',
 
   props: {
     value: Object,
+  },
+
+  setup(props) {
+    let size = inject('size');
+
+    return {
+      style: computed(() => ({
+        width: `${size.value}px`,
+        height: `${size.value}px`,
+      })),
+    }
   },
 };
 </script>
@@ -17,9 +30,6 @@ export default {
 
 .piece {
   @include piece;
-
-  width: min(10vw, 10vh);
-  height: min(10vw, 10vh);
 
   background-size: 100%;
 }
