@@ -1,34 +1,29 @@
 <template>
-    <game
-        :color="color"
-        :board="board"
-        :history="history"
-        v-model:last-move="lastMove"
-        @input="onMove"
-    >
-        <template v-slot:actions>
-            <slot name="actions" />
+  <game
+    :color="color"
+    :board="board"
+    :history="history"
+    v-model:last-move="lastMove"
+    @input="onMove"
+  >
+    <template v-slot:actions>
+      <slot name="actions" />
 
-            <v-flex class="pb-4">
-                <v-button small @click="flip">
+      <v-flex class="pb-4">
+        <!-- <v-button small @click="flip">
                     <span>flip board</span>
-                </v-button>
+                </v-button> -->
 
-                <v-button small class="ml-4" @click="reset">
-                    <span>reset</span>
-                </v-button>
+        <v-button small :disabled="!lastMove" class="mr-4" @click="reset">
+          <span>reset</span>
+        </v-button>
 
-                <v-button
-                    small
-                    class="ml-4"
-                    :disabled="latest"
-                    @click="restore"
-                >
-                    <span>revert</span>
-                </v-button>
-            </v-flex>
-        </template>
-    </game>
+        <v-button small :disabled="latest" @click="restore">
+          <span>revert</span>
+        </v-button>
+      </v-flex>
+    </template>
+  </game>
 </template>
 
 <script>
@@ -40,53 +35,51 @@ import { notate } from '@/history';
 import game from '@/ui/game';
 
 export default {
-    name: 'local-game',
-    components: {
-        game,
-    },
+  name: 'local-game',
+  components: {
+    game,
+  },
 
-    setup(props) {
-        let color = ref(Color.white);
-        let board = ref(Board.starting());
-        let history = reactive([]);
+  setup() {
+    const color = ref(Color.white);
+    const board = ref(Board.starting());
+    const history = reactive([]);
 
-        let lastMove = ref(null);
+    const lastMove = ref(null);
 
-        let latest = computed(() => lastMove.value == history[history.length - 1]);
+    const latest = computed(() => lastMove.value == history[history.length - 1]);
 
-        return {
-            latest, lastMove,
+    return {
+      latest, lastMove,
 
-            color, board, history,
+      color, board, history,
 
-            onMove(move) {
-                let result = Move.resolve(board.value, move);
-                if (result == null) return;
+      onMove(move) {
+        const result = Move.resolve(board.value, move);
+        if (result == null) return;
 
-                let notation = notate(board.value, move, result);
+        const notation = notate(board.value, move, result);
 
-                setImmediate(() => {
-                    board.value = result.board;
-                    history.push({ notation, result, move });
-                });
-            },
+        board.value = result.board;
+        history.push({ notation, result, move });
+      },
 
-            flip() {
-                color.value = color.value == Color.black ? Color.white : Color.black;
-            },
+      flip() {
+        color.value = color.value == Color.black ? Color.white : Color.black;
+      },
 
-            reset() {
-                board.value = Board.starting();
-                history.length = 0;
-                lastMove.value = null;
-            },
+      reset() {
+        board.value = Board.starting();
+        history.length = 0;
+        lastMove.value = null;
+      },
 
-            restore() {
-                board.value = lastMove.value.result.board;
-                history.length = history.indexOf(lastMove.value) + 1;
-            },
-        };
-    },
+      restore() {
+        board.value = lastMove.value.result.board;
+        history.length = history.indexOf(lastMove.value) + 1;
+      },
+    };
+  },
 };
 </script>
 

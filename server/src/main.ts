@@ -5,29 +5,18 @@ import WebSocket from 'ws';
 let port = process.argv[2] ? parseInt(process.argv[2]) : 8081;
 
 interface Client {
-    socket?: WebSocket;
-    color: 'w' | 'b';
+    socket: WebSocket;
 }
 
-const rooms = new Map<string, WebSocket>();
+interface Room {
+    clients: Client[];
+}
+
+const rooms = new Map<string, Room>();
 
 const server = new WebSocket.Server({
     port,
 });
-
-function game(code: string, a: WebSocket, b: WebSocket) {
-    a.on('close', () => b.close());
-    b.on('close', () => a.close());
-
-    a.on('message', e => b.send(e));
-    b.on('message', e => a.send(e));
-
-    let white = Math.random() < 0.5 ? a : b;
-    let black = a == white ? b : a;
-
-    white.send('w');
-    black.send('b');
-}
 
 server.on('connection', (socket, request) => {
     if (request.url == null)
@@ -36,31 +25,34 @@ server.on('connection', (socket, request) => {
     let url = new URL(request.url, 'chess:/');
     let code = url.searchParams.get('code');
 
-    if (code) {
-        let room = rooms.get(code);
-        if (room == null) return socket.close();
-
-        rooms.delete(code);
-        // if (room.length == 1) {
-        //     room.push({
-        //         socket,
-        //         color: room[0].color == 'w' ? 'b' : 'w',
-        //     });
-        // } else {
-        //     let rejoin = room.find(c => c.socket == null);
-        //     if (rejoin == null) return socket.close();
-
-        //     rejoin.socket = socket;
-        // }
-
-        game(code, room, socket);
-    } else {
+    let room: Room;
+    if (code == null) {
         code = Math.floor(Math.random() * 0x1000000).toString(16);
-        rooms.set(code, socket);
         socket.send(code);
+
+        rooms.set(code, room = { clients: [] });
+    } else {
+        room = rooms.get(code)!;
+        if (room == null || room.clients.length == 2)
+            return socket.close();
     }
 
+    let client = { socket };
+    room.clients.push(client);
+
     socket.on('close', () => {
-        rooms.delete(code!);
+        let index = room!.clients.indexOf(client);
+        room!.clients.splice(index, 1);
+        if (room.clients.length == 0) {
+            rooms.delete(code!);
+        }
+    });
+
+    socket.on('message', data => {
+        for (let other of room!.clients) {
+            if (other == client) continue;
+
+            other.socket.send(data);
+        }
     });
 });

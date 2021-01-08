@@ -1,117 +1,148 @@
-import { createApp, reactive, shallowReactive } from 'vue'
+import { createApp, markRaw, reactive } from 'vue';
 
 import { framework } from '@mfro/vue-ui';
 
 import main from './main.vue';
 
-import { Board, Color, Move, Position } from './chess';
-import { notate } from './history';
-
-declare function setImmediate(fn: () => void): void;
-
-interface HistoryEntry {
-    move: Move;
-    result: Move.Result;
-    notation: string;
-}
+import { Board, Color, Move } from './chess';
+import { HistoryEntry, notate } from './history';
+import { dispatch, GetState, AddMove, SetState } from './sockets';
+import { assert } from './util';
 
 interface RemoteGame {
-    color: Color;
-    board: Board;
-    history: HistoryEntry[];
+  color: Color;
+  board: Board;
+  history: HistoryEntry[];
 
-    code: string;
-    state: number;
+  code: string | null;
+  state: number;
 
-    reset: () => void;
-    move: (move: Move) => void;
+  reset: () => void;
+  move: (move: Move) => void;
 }
 
 function remote_game() {
-    let game: RemoteGame = shallowReactive({
-        color: Color.white,
-        board: Board.starting(),
-        history: reactive([]),
+  let socket: WebSocket;
+  const base = window.location.host == 'box:8080' ? 'ws://box:8081/' : 'wss://api.mfro.me/chess/play';
 
-        code: window.location.hash.substr(1),
-        state: 0,
+  const game: RemoteGame = reactive({
+    color: Color.white,
+    board: Board.starting(),
+    history: reactive([]),
 
-        reset() {
-            reset();
-            socket.send('');
-        },
-        move(move: Move) {
-            let piece = game.board.pieces.get(move.from);
-            if (piece == null || piece.color != game.color)
-                return null;
+    code: null,
+    state: 0,
 
-            setImmediate(() => {
-                if (apply(move)) {
-                    socket.send(JSON.stringify({
-                        from: `${move.from.file}${move.from.rank}`,
-                        to: `${move.to.file}${move.to.rank}`,
-                    }));
-                }
-            })
-        },
-    });
+    reset() {
+      game.board = Board.starting();
+      game.color = Color.other(game.color);
+      game.history.length = 0;
 
-    function reset() {
-        game.board = Board.starting();
-        game.history.length = 0;
+      send_state();
+    },
+
+    move(move: Move) {
+      const piece = game.board.pieces.get(move.from);
+      if (piece?.color != game.color)
+        return;
+
+      if (apply(move)) {
+        socket.send(AddMove.pack(Move.save(move)));
+      }
+    },
+  });
+
+  function apply(move: Move): boolean {
+    const result = Move.resolve(game.board, move);
+    if (result == null)
+      return false;
+
+    const notation = notate(game.board, move, result);
+
+    game.board = result.board;
+    game.history.push(markRaw({ move, result, notation }));
+
+    return true;
+  }
+
+  function send_state() {
+    const board = Board.save(Board.starting());
+    const color = Color.other(game.color);
+    const history = game.history.map(h => Move.save(h.move));
+
+    socket.send(SetState.pack({ board, color, history }));
+  }
+
+  const d = dispatch();
+
+  d.register(GetState, () => {
+    game.state = 2;
+    send_state();
+
+    assert(game.code != null, 'code is not set');
+    const url = new URL(window.location.href);
+    url.searchParams.set('code', game.code);
+    window.history.replaceState(null, document.title, url.pathname + url.search);
+  });
+
+  d.register(SetState, ({ board, history, color }) => {
+    game.state = 2;
+
+    game.board = Board.load(board);
+    game.color = color;
+    game.history.length = 0;
+
+    for (const move of history) {
+      assert(apply(Move.load(move)), 'invalid comms');
     }
+  });
 
-    function apply(move: Move): boolean {
-        let result = Move.resolve(game.board, move);
-        if (result == null)
-            return false;
+  d.register(AddMove, move => {
+    assert(apply(Move.load(move)), 'invalid comms');
+  });
 
-        let notation = notate(game.board, move, result);
-
-        game.board = result.board;
-        game.history.push({ move, result, notation });
-
-        return true;
-    }
-
-    let socket: WebSocket;
-    let base = location.host == 'box:8080' ? 'ws://box:8081/' : 'wss://api.mfro.me/chess/play';
+  function connect() {
+    const url = new URL(window.location.href);
+    game.code = url.searchParams.get('code');
 
     if (game.code) {
-        socket = new WebSocket(`${base}?code=${game.code}`);
-        game.state = 1;
+      socket = new WebSocket(`${base}?code=${game.code}`);
+      socket.addEventListener('open', () => {
+        socket.send(GetState.pack());
+      });
+
+      game.state = 1;
     } else {
-        socket = new WebSocket(`${base}`);
-        game.state = 0;
+      socket = new WebSocket(`${base}`);
+      game.state = 0;
     }
 
     socket.addEventListener('message', e => {
-        if (game.state == 0) {
-            game.code = e.data;
-            game.state = 1;
-        } else if (game.state == 1) {
-            game.color = e.data;
-            game.state = 2;
-        } else if (e.data == '') {
-            reset();
-        } else {
-            let msg = JSON.parse(e.data);
-
-            let from = Position[msg.from as keyof typeof Position] as Position;
-            let to = Position[msg.to as keyof typeof Position] as Position;
-
-            let move = { from, to };
-
-            apply(move);
-        }
+      if (game.state == 0) {
+        game.code = e.data;
+        game.state = 1;
+      } else {
+        d.dispatch(e.data);
+      }
     });
 
-    return game;
+    socket.addEventListener('close', e => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('code');
+      window.history.replaceState(null, document.title, url.pathname + url.search);
+
+      connect();
+    });
+  }
+
+  connect();
+
+  return game;
 }
 
-let game: RemoteGame = remote_game();
+const game: RemoteGame = remote_game();
 
-let app = createApp(main);
+const app = createApp(main);
 app.use(framework);
 
 app.provide('remote', game);
