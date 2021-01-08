@@ -472,7 +472,7 @@ export namespace Move {
 
 export namespace Rules {
   export function check(board: Board, color?: Color): Color | null {
-    let list: Color[] = color ? [color] : [Color.white, Color.black];
+    const list: Color[] = color ? [color] : [Color.white, Color.black];
 
     for (const color of list) {
       const king = [...board.pieces].find(p => p[1].kind == Piece.king && p[1].color == color);
