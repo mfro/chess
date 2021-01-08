@@ -447,7 +447,7 @@ export namespace Move {
     if (result == null)
       return null;
 
-    if (Rules.check(result.board) == piece.color)
+    if (Rules.check(result.board, piece.color))
       return null;
 
     return result;
@@ -471,8 +471,10 @@ export namespace Move {
 }
 
 export namespace Rules {
-  export function check(board: Board): Color | null {
-    for (const color of [Color.white, Color.black] as const) {
+  export function check(board: Board, color?: Color): Color | null {
+    let list: Color[] = color ? [color] : [Color.white, Color.black];
+
+    for (const color of list) {
       const king = [...board.pieces].find(p => p[1].kind == Piece.king && p[1].color == color);
       if (king && is_threatened(board, king[0], color)) return color;
     }
