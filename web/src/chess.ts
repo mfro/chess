@@ -1,4 +1,4 @@
-import { zip } from "./util";
+import { assert, zip } from "./util";
 
 export type Color = 'w' | 'b';
 export type PieceKind = 'p' | 'r' | 'n' | 'b' | 'q' | 'k';
@@ -224,98 +224,188 @@ export namespace Board {
 export interface Move {
     from: Position;
     to: Position;
+    promotion?: PieceKind;
 }
 
 export namespace Move {
-    export function is_valid(board: Board, move: Move) {
+    export type Result =
+        | { board: Board, capture?: Piece }
+        | { board: Board, castle: typeof Piece.king | typeof Piece.queen }
+        | { board: Board, capture: Piece, en_passant: true };
+
+    export function validate(board: Board, move: Move): Result | null {
+        function normal(): Result {
+            board = Board.copy(board);
+
+            if (piece.kind == Piece.king) {
+                if (piece.color == Color.white)
+                    board.white_kingside_castle = board.white_queenside_castle = false;
+                else
+                    board.black_kingside_castle = board.black_queenside_castle = false;
+            }
+
+            if (piece.kind == Piece.rook) {
+                if (move.from == Position.a1) board.white_queenside_castle = false;
+                if (move.from == Position.h1) board.white_kingside_castle = false;
+                if (move.from == Position.a8) board.black_queenside_castle = false;
+                if (move.from == Position.h8) board.black_kingside_castle = false;
+            }
+
+            board.white_passant = Position.files.map(() => false);
+            if (piece.kind == Piece.pawn && move.from.rank == 2 && move.to.rank == 4)
+                board.white_passant[Position.files.indexOf(move.from.file)] = true;
+
+            board.black_passant = Position.files.map(() => false);
+            if (piece.kind == Piece.pawn && move.from.rank == 7 && move.to.rank == 5)
+                board.black_passant[Position.files.indexOf(move.from.file)] = true;
+
+            board.pieces.delete(move.from);
+            board.pieces.set(move.to, piece);
+
+            board.next = piece.color == Color.white ? Color.black : Color.white;
+
+            return { board, capture };
+        }
+
+        function en_passant(capture: Piece): Result {
+            let { board } = normal();
+
+            let pair = [...board.pieces].find(pair => pair[1] == capture);
+            assert(pair != null, 'invalid move');
+            board.pieces.delete(pair[0])
+
+            return { board, capture, en_passant: true };
+        }
+
+        function castle(castle: typeof Piece.king | typeof Piece.queen): Result {
+            let { board } = normal();
+
+            if (piece.color == Color.white) {
+                if (castle == Piece.king) {
+                    let rook = board.pieces.get(Position.h1)!;
+                    board.pieces.delete(Position.h1);
+                    board.pieces.set(Position.f1, rook);
+                } else {
+                    let rook = board.pieces.get(Position.a1)!;
+                    board.pieces.delete(Position.a1);
+                    board.pieces.set(Position.d1, rook);
+                }
+            } else {
+                if (castle == Piece.king) {
+                    let rook = board.pieces.get(Position.h8)!;
+                    board.pieces.delete(Position.h8);
+                    board.pieces.set(Position.f8, rook);
+                } else {
+                    let rook = board.pieces.get(Position.a8)!;
+                    board.pieces.delete(Position.a8);
+                    board.pieces.set(Position.d8, rook);
+                }
+            }
+
+            return { board, castle };
+        }
+
         let piece = board.pieces.get(move.from)!;
         if (piece == null)
-            return false;
+            return null;
 
-        let victim = board.pieces.get(move.to);
-        if (victim && victim.color == piece.color)
-            return false;
+        let capture = board.pieces.get(move.to);
+        if (capture && capture.color == piece.color)
+            return null;
 
         let offset = Position.offset(move.from, move.to);
 
         if (piece.kind == Piece.pawn) {
-            if (piece.color == Color.white) {
-                return Offset.eq(offset, 1, 0) && !victim
-                    || Offset.eq(offset, 2, 0) && !victim && move.from.rank == 2 && !board.pieces.has(Position.add(move.from, 1, 0))
-                    || Offset.eq(offset, 1, 1) && (victim || board.black_passant[Position.files.indexOf(move.to.file)])
-                    || Offset.eq(offset, 1, -1) && (victim || board.black_passant[Position.files.indexOf(move.to.file)])
-            } else {
-                return Offset.eq(offset, -1, 0) && !victim
-                    || Offset.eq(offset, -2, 0) && !victim && move.from.rank == 7 && !board.pieces.has(Position.add(move.from, -1, 0))
-                    || Offset.eq(offset, -1, 1) && (victim || board.white_passant[Position.files.indexOf(move.to.file)])
-                    || Offset.eq(offset, -1, -1) && (victim || board.white_passant[Position.files.indexOf(move.to.file)])
+            let dir = piece.color == Color.white ? 1 : -1;
+            let origin = piece.color == Color.white ? 2 : 7;
+
+            if (Offset.eq(offset, dir * 1, 0) && !capture ||
+                Offset.eq(offset, dir * 2, 0) && !capture && move.from.rank == origin && !board.pieces.has(Position.add(move.from, dir * 1, 0)))
+                return normal();
+
+            if (Offset.eq(offset, dir * 1, 1) || Offset.eq(offset, dir * 1, -1)) {
+                if (capture)
+                    return normal();
+
+                let passe = board.pieces.get(Position.add(move.to, dir * -1, 0))!;
+                if (passe &&
+                    (piece.color == Color.white && board.black_passant[Position.files.indexOf(move.to.file)] ||
+                        piece.color == Color.black && board.white_passant[Position.files.indexOf(move.to.file)]))
+                    return en_passant(passe);
             }
+
+            return null;
         }
 
-        if (piece.kind == Piece.rook) {
-            return (offset.files == 0 || offset.ranks == 0)
-                && Position.slide(move.from, move.to).every(p => !board.pieces.has(p));
+        else if (piece.kind == Piece.rook) {
+            if ((offset.files == 0 || offset.ranks == 0) &&
+                Position.slide(move.from, move.to).every(p => !board.pieces.has(p)))
+                return normal();
         }
 
-        if (piece.kind == Piece.bishop) {
-            return Math.abs(offset.files) == Math.abs(offset.ranks)
-                && Position.slide(move.from, move.to).every(p => !board.pieces.has(p));
+        else if (piece.kind == Piece.bishop) {
+            if (Math.abs(offset.files) == Math.abs(offset.ranks) &&
+                Position.slide(move.from, move.to).every(p => !board.pieces.has(p)))
+                return normal();
         }
 
-        if (piece.kind == Piece.knight) {
-            return Math.abs(offset.ranks) + Math.abs(offset.files) == 3
-                && Math.abs(offset.ranks) != 3 && Math.abs(offset.files) != 3;
+        else if (piece.kind == Piece.knight) {
+            if (Math.abs(offset.ranks) + Math.abs(offset.files) == 3 &&
+                Math.abs(offset.ranks) != 3 && Math.abs(offset.files) != 3)
+                return normal();
         }
 
-        if (piece.kind == Piece.queen) {
-            return (Math.abs(offset.files) == Math.abs(offset.ranks) || offset.files == 0 || offset.ranks == 0)
-                && Position.slide(move.from, move.to).every(p => !board.pieces.has(p));
+        else if (piece.kind == Piece.queen) {
+            if ((Math.abs(offset.files) == Math.abs(offset.ranks) || offset.files == 0 || offset.ranks == 0) &&
+                Position.slide(move.from, move.to).every(p => !board.pieces.has(p)))
+                return normal();
         }
 
-        if (piece.kind == Piece.king) {
+        else if (piece.kind == Piece.king) {
             if (Math.abs(offset.ranks) <= 1 && Math.abs(offset.files) <= 1)
-                return true;
+                return normal();
 
             if (Math.abs(offset.files) == 2 && Math.abs(offset.ranks) == 0) {
-                if (!Position.slide(move.from, move.to).every(p => !Rules.is_threatened(board, p, piece.color)))
-                    return false;
+                if (Rules.is_threatened(board, move.from, piece.color) || Rules.is_threatened(board, move.to, piece.color) ||
+                    !Position.slide(move.from, move.to).every(p => !Rules.is_threatened(board, p, piece.color)))
+                    return null;
 
                 if (offset.files == 2) {
-                    if (piece.color == Color.white)
-                        return board.white_kingside_castle
-                            && Position.slide(Position.e1, Position.h1).every(p => !board.pieces.has(p));
+                    if (piece.color == Color.white && board.white_kingside_castle &&
+                        Position.slide(Position.e1, Position.h1).every(p => !board.pieces.has(p)))
+                        return castle(Piece.king);
 
-                    if (piece.color == Color.black)
-                        return board.black_kingside_castle
-                            && Position.slide(Position.e8, Position.h8).every(p => !board.pieces.has(p));
+                    else if (piece.color == Color.black && board.black_kingside_castle &&
+                        Position.slide(Position.e8, Position.h8).every(p => !board.pieces.has(p)))
+                        return castle(Piece.king);
                 } else {
-                    if (piece.color == Color.white)
-                        return board.white_kingside_castle
-                            && Position.slide(Position.e1, Position.a1).every(p => !board.pieces.has(p));
+                    if (piece.color == Color.white && board.white_queenside_castle &&
+                        Position.slide(Position.e1, Position.a1).every(p => !board.pieces.has(p)))
+                        return castle(Piece.queen);
 
-                    if (piece.color == Color.black)
-                        return board.black_kingside_castle
-                            && Position.slide(Position.e8, Position.a8).every(p => !board.pieces.has(p));
+                    else if (piece.color == Color.black && board.black_queenside_castle &&
+                        Position.slide(Position.e8, Position.a8).every(p => !board.pieces.has(p)))
+                        return castle(Piece.queen);
                 }
             }
         }
+
+        return null;
     }
 
-    export function is_legal(board: Board, move: Move) {
+    export function resolve(board: Board, move: Move): Result | null {
         let piece = board.pieces.get(move.from);
         if (piece == null || piece.color != board.next)
-            return false;
+            return null;
 
-        if (!is_valid(board, move))
-            return false;
+        let result = validate(board, move);
+        if (result == null)
+            return null;
 
-        let future = Board.copy(board);
-        apply_move(future, move);
+        if (Rules.check(result.board) == piece.color)
+            return null;
 
-        if (Rules.check(future) == piece.color)
-            return false;
-
-        return true;
+        return result;
     }
 
     // export function legal_moves(board: Board, from: Position) {
@@ -361,75 +451,6 @@ export namespace Move {
     //         }
     //     }
     // }
-
-    export function apply_move(board: Board, move: Move) {
-        let taken = board.pieces.get(move.to);
-        let piece = board.pieces.get(move.from)!;
-        board.pieces.delete(move.from);
-        board.pieces.set(move.to, piece);
-
-        board.next = piece.color == Color.white ? Color.black : Color.white;
-
-        if (piece.kind == Piece.king) {
-            if (piece.color == Color.white)
-                board.white_kingside_castle = board.white_queenside_castle = false;
-            else
-                board.black_kingside_castle = board.black_queenside_castle = false;
-        }
-
-        if (piece.kind == Piece.rook) {
-            if (move.from == Position.a1)
-                board.white_queenside_castle = false;
-
-            if (move.from == Position.h1)
-                board.white_kingside_castle = false;
-
-            if (move.from == Position.a8)
-                board.black_queenside_castle = false;
-
-            if (move.from == Position.h8)
-                board.black_kingside_castle = false;
-        }
-
-        board.white_passant = Position.files.map(() => false);
-        if (piece.kind == Piece.pawn && move.from.rank == 2 && move.to.rank == 4)
-            board.white_passant[Position.files.indexOf(move.from.file)] = true;
-
-        board.black_passant = Position.files.map(() => false);
-        if (piece.kind == Piece.pawn && move.from.rank == 7 && move.to.rank == 5)
-            board.black_passant[Position.files.indexOf(move.from.file)] = true;
-
-        if (piece.kind == Piece.pawn && move.from.file != move.to.file && !taken) {
-            if (piece.color == Color.white)
-                board.pieces.delete(Position.add(move.to, -1, 0))
-            else
-                board.pieces.delete(Position.add(move.to, 1, 0))
-        }
-
-        if (piece.kind == Piece.king && move.from.file == 'e' && move.to.file == 'g') {
-            let rook = board.pieces.get(Position.h1)!;
-            board.pieces.delete(Position.h1);
-            board.pieces.set(Position.f1, rook);
-        }
-
-        if (piece.kind == Piece.king && move.from.file == 'e' && move.to.file == 'c') {
-            let rook = board.pieces.get(Position.a1)!;
-            board.pieces.delete(Position.a1);
-            board.pieces.set(Position.d1, rook);
-        }
-
-        if (piece.kind == Piece.king && move.from.file == 'e' && move.to.file == 'g') {
-            let rook = board.pieces.get(Position.h8)!;
-            board.pieces.delete(Position.h8);
-            board.pieces.set(Position.f8, rook);
-        }
-
-        if (piece.kind == Piece.king && move.from.file == 'e' && move.to.file == 'c') {
-            let rook = board.pieces.get(Position.a8)!;
-            board.pieces.delete(Position.a8);
-            board.pieces.set(Position.d8, rook);
-        }
-    }
 }
 
 export namespace Rules {
@@ -452,7 +473,7 @@ export namespace Rules {
             let set = new Set();
 
             for (let to of Position.all) {
-                if (Move.is_legal(board, { from, to })) {
+                if (Move.resolve(board, { from, to })) {
                     set.add(to);
                 }
             }
@@ -467,7 +488,7 @@ export namespace Rules {
 
     export function is_threatened(board: Board, pos: Position, victim: Color) {
         for (let [from, piece] of board.pieces) {
-            if (piece.color != victim && Move.is_valid(board, { from, to: pos })) {
+            if (piece.color != victim && Move.validate(board, { from, to: pos })) {
                 return true;
             }
         }

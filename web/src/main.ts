@@ -1,57 +1,99 @@
-import { createApp, reactive } from 'vue'
+import { createApp, reactive, shallowReactive } from 'vue'
 
 import { framework } from '@mfro/vue-ui';
 
 import main from './main.vue';
 
 import { Board, Color, Move, Position } from './chess';
+import { notate } from './history';
 
-interface Engine {
-    move(move: Move): void;
+declare function setImmediate(fn: () => void): void;
+
+interface HistoryEntry {
+    move: Move;
+    result: Move.Result;
+    notation: string;
 }
 
-interface RemoteState {
-    status: number;
-    code: string;
-    local: Color;
+interface RemoteGame {
+    color: Color;
     board: Board;
-    restart: () => void;
+    history: HistoryEntry[];
+
+    code: string;
+    state: number;
+
+    reset: () => void;
+    move: (move: Move) => void;
 }
 
-function local_engine(board: Board) {
-    return {
-        move(move: Move) {
-            if (Move.is_legal(board, move)) {
-                Move.apply_move(board, move);
-            }
+function remote_game() {
+    let game: RemoteGame = shallowReactive({
+        color: Color.white,
+        board: Board.starting(),
+        history: reactive([]),
+
+        code: window.location.hash.substr(1),
+        state: 0,
+
+        reset() {
+            reset();
+            socket.send('');
         },
-    };
-}
+        move(move: Move) {
+            let piece = game.board.pieces.get(move.from);
+            if (piece == null || piece.color != game.color)
+                return null;
 
-function remote_engine(state: RemoteState): Engine {
+            setImmediate(() => {
+                if (apply(move)) {
+                    socket.send(JSON.stringify({
+                        from: `${move.from.file}${move.from.rank}`,
+                        to: `${move.to.file}${move.to.rank}`,
+                    }));
+                }
+            })
+        },
+    });
+
+    function reset() {
+        game.board = Board.starting();
+        game.history.length = 0;
+    }
+
+    function apply(move: Move): boolean {
+        let result = Move.resolve(game.board, move);
+        if (result == null)
+            return false;
+
+        let notation = notate(game.board, move, result);
+
+        game.board = result.board;
+        game.history.push({ move, result, notation });
+
+        return true;
+    }
+
     let socket: WebSocket;
     let base = location.host == 'box:8080' ? 'ws://box:8081/' : 'wss://api.mfro.me/chess/play';
 
-    let code = window.location.hash.substr(1);
-    if (code) {
-        socket = new WebSocket(`${base}?code=${code}`);
-        state.status = 1;
+    if (game.code) {
+        socket = new WebSocket(`${base}?code=${game.code}`);
+        game.state = 1;
     } else {
         socket = new WebSocket(`${base}`);
-        state.status = 0;
+        game.state = 0;
     }
 
-    let skip = false;
     socket.addEventListener('message', e => {
-        if (state.status == 0) {
-            state.code = e.data;
-            state.status = 1;
-        } else if (state.status == 1) {
-            state.local = e.data;
-            state.status = 2;
-            state.board = Board.starting();
+        if (game.state == 0) {
+            game.code = e.data;
+            game.state = 1;
+        } else if (game.state == 1) {
+            game.color = e.data;
+            game.state = 2;
         } else if (e.data == '') {
-            state.board = Board.starting();
+            reset();
         } else {
             let msg = JSON.parse(e.data);
 
@@ -60,53 +102,18 @@ function remote_engine(state: RemoteState): Engine {
 
             let move = { from, to };
 
-            skip = true;
-            engine.move(move);
-            skip = false;
+            apply(move);
         }
     });
 
-    state.restart = () => {
-        socket.send('');
-        state.board = Board.starting();
-    };
-
-    let engine: Engine = {
-        move(move: Move) {
-            if (!Move.is_legal(state.board, move))
-                return false;
-
-            if (!skip) {
-                socket.send(JSON.stringify({
-                    from: `${move.from.file}${move.from.rank}`,
-                    to: `${move.to.file}${move.to.rank}`,
-                }));
-            }
-
-            Move.apply_move(state.board, move);
-            return true;
-        },
-    };
-
-    return engine;
+    return game;
 }
 
-let state: RemoteState = reactive({
-    status: 0,
-    code: '',
-    local: Color.white,
-    board: Board.starting(),
-    restart: () => { },
-});
-
-let engine = remote_engine(state);
+let game: RemoteGame = remote_game();
 
 let app = createApp(main);
-
 app.use(framework);
 
-app.provide('room', state);
-app.provide('engine', engine);
-app.provide('restart', () => { });
+app.provide('remote', game);
 
 app.mount('#app');

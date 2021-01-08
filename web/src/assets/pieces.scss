@@ -1,16 +1,16 @@
 @mixin piece {
-    &.bp { background-image: url("../assets/set1/bp.png"); }
-    &.br { background-image: url("../assets/set1/br.png"); }
-    &.bn { background-image: url("../assets/set1/bn.png"); }
-    &.bb { background-image: url("../assets/set1/bb.png"); }
-    &.bq { background-image: url("../assets/set1/bq.png"); }
-    &.bk { background-image: url("../assets/set1/bk.png"); }
-    &.wp { background-image: url("../assets/set1/wp.png"); }
-    &.wr { background-image: url("../assets/set1/wr.png"); }
-    &.wn { background-image: url("../assets/set1/wn.png"); }
-    &.wb { background-image: url("../assets/set1/wb.png"); }
-    &.wq { background-image: url("../assets/set1/wq.png"); }
-    &.wk { background-image: url("../assets/set1/wk.png"); }
+    &.bp { background-image: url("~@/assets/set1/bp.png"); }
+    &.br { background-image: url("~@/assets/set1/br.png"); }
+    &.bn { background-image: url("~@/assets/set1/bn.png"); }
+    &.bb { background-image: url("~@/assets/set1/bb.png"); }
+    &.bq { background-image: url("~@/assets/set1/bq.png"); }
+    &.bk { background-image: url("~@/assets/set1/bk.png"); }
+    &.wp { background-image: url("~@/assets/set1/wp.png"); }
+    &.wr { background-image: url("~@/assets/set1/wr.png"); }
+    &.wn { background-image: url("~@/assets/set1/wn.png"); }
+    &.wb { background-image: url("~@/assets/set1/wb.png"); }
+    &.wq { background-image: url("~@/assets/set1/wq.png"); }
+    &.wk { background-image: url("~@/assets/set1/wk.png"); }
 
     // &.bp { background-image: url("../assets/set2/bp.svg"); }
     // &.br { background-image: url("../assets/set2/br.svg"); }
