@@ -42,6 +42,10 @@ export function notate(board: Board, move: Move, result: Move.Result) {
         text += move.from.file + move.from.rank;
     }
 
+    if (result.capture) {
+      text += 'x';
+    }
+
     text += move.to.file + move.to.rank;
 
     if (move.promotion) {
