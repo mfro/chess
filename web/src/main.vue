@@ -56,7 +56,7 @@
 </template>
 
 <script >
-import { computed, inject, ref } from 'vue';
+import { computed, inject, shallowRef } from 'vue';
 
 import { Rules } from './chess';
 
@@ -73,7 +73,7 @@ export default {
   setup(props) {
     const remote = inject('remote');
 
-    const lastMove = ref(null);
+    const lastMove = shallowRef(null);
     const result = computed(() => {
       if (Rules.all_legal_moves(remote.board).size > 0)
         return null;
@@ -83,8 +83,8 @@ export default {
 
     const base = window.location;
     const link = computed(() => `${base.origin}${base.pathname}?code=${remote.code}`);
-    const linkInput = ref(null);
-    const linkCopied = ref(false);
+    const linkInput = shallowRef(null);
+    const linkCopied = shallowRef(false);
 
     return {
       remote,

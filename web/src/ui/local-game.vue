@@ -27,7 +27,7 @@
 </template>
 
 <script>
-import { computed, reactive, ref } from 'vue';
+import { computed, markRaw, reactive, shallowRef } from 'vue';
 
 import { Color, Board, Move } from '@/chess';
 import { notate } from '@/history';
@@ -41,11 +41,11 @@ export default {
   },
 
   setup() {
-    const color = ref(Color.white);
-    const board = ref(Board.starting());
+    const color = shallowRef(Color.white);
+    const board = shallowRef(Board.starting());
     const history = reactive([]);
 
-    const lastMove = ref(null);
+    const lastMove = shallowRef(null);
 
     const latest = computed(() => lastMove.value == history[history.length - 1]);
 
@@ -61,7 +61,7 @@ export default {
         const notation = notate(board.value, move, result);
 
         board.value = result.board;
-        history.push({ notation, result, move });
+        history.push(markRaw({ notation, result, move }));
       },
 
       flip() {

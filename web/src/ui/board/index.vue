@@ -49,7 +49,7 @@
 </template>
 
 <script>
-import { computed, provide, ref, toRef, watch, watchEffect } from 'vue';
+import { computed, provide, shallowRef, toRef, watch, watchEffect } from 'vue';
 
 import { Color, Position, Rules } from '@/chess';
 import * as sound_assets from '@/assets/sound';
@@ -90,11 +90,11 @@ export default {
   },
 
   setup(props, { emit }) {
-    const root = ref(null);
+    const root = shallowRef(null);
 
     provide('color', toRef(props, 'color'));
 
-    const size = ref(Math.floor(Math.min(window.innerWidth, window.innerHeight) / 10));
+    const size = shallowRef(Math.floor(Math.min(window.innerWidth, window.innerHeight) / 10));
     provide('size', size);
     window.addEventListener('resize', () => {
       size.value = Math.floor(Math.min(window.innerWidth, window.innerHeight) / 10);
@@ -106,10 +106,10 @@ export default {
       return [].concat(...ranks);
     });
 
-    const hover = ref(null);
+    const hover = shallowRef(null);
 
-    const moving = ref(null);
-    const localMove = ref(null);
+    const moving = shallowRef(null);
+    const localMove = shallowRef(null);
 
     let ordering;
     watchEffect(() => {
@@ -172,9 +172,13 @@ export default {
     const startDrag = (x, y) => {
       moveDrag(x, y);
 
-      const position = positionAt(x, y);
-      if (position && props.value.pieces.has(position))
-        moving.value = position;
+      if (moving.value) {
+        moving.value = null;
+      } else {
+        const position = positionAt(x, y);
+        if (position && props.value.pieces.has(position))
+          moving.value = position;
+      }
     };
 
     const moveDrag = (x, y) => {

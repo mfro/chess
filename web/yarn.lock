@@ -887,9 +887,9 @@
     cssnano-preset-default "^4.0.0"
     postcss "^7.0.0"
 
-"@mfro/vue-ui@https://github.com/mfro/vue-ui":
-  version "1.0.0"
-  resolved "https://github.com/mfro/vue-ui#b9b9bbb6ab65ff995d0e766b6be7f118fc70a1e8"
+"@mfro/vue-ui@mfro/vue-ui":
+  version "1.0.1"
+  resolved "https://codeload.github.com/mfro/vue-ui/tar.gz/9b06a4853660c0519d0155e7db28cda19e3a9202"
   dependencies:
     ress "^3.0.0"
     vue "^3.0.0"

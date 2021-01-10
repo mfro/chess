@@ -21,7 +21,7 @@
 </template>
 
 <script>
-import { ref, watch } from 'vue';
+import { shallowRef, watch } from 'vue';
 
 import board from '@/ui/board';
 import history from '@/ui/history';
@@ -42,17 +42,13 @@ export default {
   },
 
   setup(props, { emit }) {
-    const profile = ref(window.innerWidth < window.innerHeight);
+    const profile = shallowRef(window.innerWidth < window.innerHeight);
 
-    const animate = ref(false);
+    const animate = shallowRef(false);
 
     watch(() => [props.board, props.lastMove], ([_0, lastMove], [_1, oldLastMove]) => {
       const index = props.history.indexOf(lastMove);
       const oldIndex = props.history.indexOf(oldLastMove);
-
-      // console.log(lastMove?.notation, index);
-      // console.log(oldLastMove?.notation, oldIndex);
-      // console.log(props.history.length);
 
       if (oldLastMove && oldIndex == -1) {
         emit('update:last-move', null);
@@ -80,7 +76,7 @@ export default {
         if (props.lastMove != props.history[props.history.length - 1])
           return;
 
-        setImmediate(() => emit('input', move));
+        emit('input', move);
       },
     };
   },
