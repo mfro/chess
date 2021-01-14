@@ -1,5 +1,5 @@
 {
-  "name": "chess.server",
+  "name": "@mfro/chess-server",
   "version": "0.1.0",
   "private": true,
   "main": "main.js",
@@ -11,6 +11,8 @@
     "ws": "^7.3.0"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^17.0.0",
+    "@rollup/plugin-node-resolve": "^11.0.1",
     "@types/node": "^14.14.19",
     "@types/ws": "^7.4.0",
     "rollup": "^2.35.1",
