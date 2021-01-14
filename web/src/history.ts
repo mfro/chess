@@ -1,5 +1,6 @@
+import { assert } from '@mfro/ts-common/assert';
+
 import { Board, Move, Piece, Rules } from './chess';
-import { assert } from './util';
 
 const letters = new Map([
   [Piece.pawn, ''],

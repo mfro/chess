@@ -1,3 +1,5 @@
+const path = require('path');
+
 module.exports = {
   publicPath: '',
 
@@ -19,6 +21,9 @@ module.exports = {
   configureWebpack: {
     resolve: {
       symlinks: false,
+      alias: {
+        vue$: path.resolve('../vue-next/packages/vue/dist/vue.runtime.esm-bundler.js'),
+      }
     },
   },
 };

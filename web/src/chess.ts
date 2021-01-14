@@ -1,4 +1,4 @@
-import { assert, zip } from './util';
+import { assert } from '@mfro/ts-common/assert';
 
 export type Color = 'w' | 'b';
 export type PieceKind = 'p' | 'r' | 'n' | 'b' | 'q' | 'k';
@@ -538,3 +538,10 @@ Object.assign(window, {
     },
   ],
 });
+
+function zip<T1, T2>(a: T1[], b: T2[]): [T1, T2][] {
+  if (a.length != b.length)
+    throw new Error('invalid zip');
+
+  return a.map((v, i) => [v, b[i]]);
+}

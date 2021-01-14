@@ -2,12 +2,21 @@ import { createApp, markRaw, reactive } from 'vue';
 
 import { framework } from '@mfro/vue-ui';
 
+import { on } from '@mfro/ts-common/events';
+import { assert } from '@mfro/ts-common/assert';
+import { Packet, receive, send } from '@mfro/ts-common/sockets';
+
 import main from './main.vue';
 
 import { Board, Color, Move } from './chess';
 import { HistoryEntry, notate } from './history';
-import { dispatch, GetState, AddMove, SetState } from './sockets';
-import { assert } from './util';
+
+const RoomCode = Packet.define<string>();
+
+const GetState = Packet.define();
+const SetState = Packet.define<{ board: Board.Saved; color: Color; history: Move.Saved[] }>();
+
+const AddMove = Packet.define<Move.Saved>();
 
 interface RemoteGame {
   color: Color;
@@ -47,7 +56,7 @@ function remote_game() {
         return;
 
       if (apply(move)) {
-        socket.send(AddMove.pack(Move.save(move)));
+        send(socket, AddMove, Move.save(move));
       }
     },
   });
@@ -70,12 +79,36 @@ function remote_game() {
     const color = Color.other(game.color);
     const history = game.history.map(h => Move.save(h.move));
 
-    socket.send(SetState.pack({ board, color, history }));
+    send(socket, SetState, { board, color, history });
   }
 
-  const d = dispatch();
+  const url = new URL(window.location.href);
+  game.code = url.searchParams.get('code');
 
-  d.register(GetState, () => {
+  if (game.code) {
+    socket = new WebSocket(`${base}?code=${game.code}`);
+    game.state = 0;
+  } else {
+    socket = new WebSocket(`${base}`);
+    game.state = 1;
+  }
+
+  on(receive(socket, RoomCode), code => {
+    if (code != game.code) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('code');
+      window.history.replaceState(null, document.title, url.pathname + url.search);
+    }
+
+    game.code = code;
+
+    if (game.state == 0) {
+      send(socket, GetState);
+      game.state = 1;
+    }
+  });
+
+  on(receive(socket, GetState), () => {
     game.state = 2;
     send_state();
 
@@ -85,7 +118,7 @@ function remote_game() {
     window.history.replaceState(null, document.title, url.pathname + url.search);
   });
 
-  d.register(SetState, ({ board, history, color }) => {
+  on(receive(socket, SetState), ({ board, history, color }) => {
     game.state = 2;
 
     game.board = Board.load(board);
@@ -97,45 +130,9 @@ function remote_game() {
     }
   });
 
-  d.register(AddMove, move => {
+  on(receive(socket, AddMove), (move) => {
     assert(apply(Move.load(move)), 'invalid comms');
   });
-
-  function connect() {
-    const url = new URL(window.location.href);
-    game.code = url.searchParams.get('code');
-
-    if (game.code) {
-      socket = new WebSocket(`${base}?code=${game.code}`);
-      socket.addEventListener('open', () => {
-        socket.send(GetState.pack());
-      });
-
-      game.state = 1;
-    } else {
-      socket = new WebSocket(`${base}`);
-      game.state = 0;
-    }
-
-    socket.addEventListener('message', e => {
-      if (game.state == 0) {
-        game.code = e.data;
-        game.state = 1;
-      } else {
-        d.dispatch(e.data);
-      }
-    });
-
-    socket.addEventListener('close', e => {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('code');
-      window.history.replaceState(null, document.title, url.pathname + url.search);
-
-      connect();
-    });
-  }
-
-  connect();
 
   return game;
 }

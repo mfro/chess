@@ -2,6 +2,12 @@ import { URL } from 'url';
 
 import WebSocket from 'ws';
 
+import { Packet, send } from '@mfro/ts-common/sockets';
+
+// import { RoomCode } from 'common/sockets';
+
+const RoomCode = Packet.define<string>();
+
 let port = process.argv[2] ? parseInt(process.argv[2]) : 8081;
 
 interface Client {
@@ -18,6 +24,13 @@ const server = new WebSocket.Server({
     port,
 });
 
+function new_room(): [string, Room] {
+    let code = Math.floor(Math.random() * 0x1000000).toString(16);
+    let room = { clients: [] };
+    rooms.set(code, room);
+    return [code, room];
+}
+
 server.on('connection', (socket, request) => {
     if (request.url == null)
         return socket.close();
@@ -27,15 +40,15 @@ server.on('connection', (socket, request) => {
 
     let room: Room;
     if (code == null) {
-        code = Math.floor(Math.random() * 0x1000000).toString(16);
-        socket.send(code);
-
-        rooms.set(code, room = { clients: [] });
+        [code, room] = new_room();
     } else {
         room = rooms.get(code)!;
-        if (room == null || room.clients.length == 2)
-            return socket.close();
+        if (room == null || room.clients.length == 2) {
+            [code, room] = new_room();
+        }
     }
+
+    send(socket, RoomCode, code);
 
     let client = { socket };
     room.clients.push(client);

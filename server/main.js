@@ -3562,11 +3562,75 @@ websocket.Sender = sender;
 
 var ws = websocket;
 
+var Identity;
+(function (Identity) {
+    function create() {
+        let id = Math.floor(Math.random() * 0x1000000).toString(16);
+        return id;
+    }
+    Identity.create = create;
+})(Identity || (Identity = {}));
+var Packet;
+(function (Packet) {
+    Packet.all = [];
+    function define() {
+        const id = Packet.all.length;
+        Packet.all.push(id);
+        return id;
+    }
+    Packet.define = define;
+    function seal(packet, value) {
+        if (value === undefined)
+            return packet;
+        else
+            return [packet, value];
+    }
+    Packet.seal = seal;
+    function unseal(raw) {
+        var _a, _b;
+        if (typeof raw == 'number')
+            return [(_a = Packet.all[raw]) !== null && _a !== void 0 ? _a : raw, undefined];
+        else {
+            let [id, value] = raw;
+            return [(_b = Packet.all[id]) !== null && _b !== void 0 ? _b : id, value];
+        }
+    }
+    Packet.unseal = unseal;
+})(Packet || (Packet = {}));
+var Dispatch;
+(function (Dispatch) {
+    function create() {
+        let map = new Map();
+        return {
+            on(message, handler) {
+                map.set(message, handler);
+            },
+            emit(message, value) {
+                var _a;
+                (_a = map.get(message)) === null || _a === void 0 ? void 0 : _a(value);
+            },
+        };
+    }
+    Dispatch.create = create;
+})(Dispatch || (Dispatch = {}));
+function send(socket, ty, value) {
+    let sealed = Packet.seal(ty, value);
+    socket.send(JSON.stringify(sealed));
+}
+
+// import { RoomCode } from 'common/sockets';
+const RoomCode = Packet.define();
 let port = process.argv[2] ? parseInt(process.argv[2]) : 8081;
 const rooms = new Map();
 const server = new ws.Server({
     port,
 });
+function new_room() {
+    let code = Math.floor(Math.random() * 0x1000000).toString(16);
+    let room = { clients: [] };
+    rooms.set(code, room);
+    return [code, room];
+}
 server.on('connection', (socket, request) => {
     if (request.url == null)
         return socket.close();
@@ -3574,15 +3638,15 @@ server.on('connection', (socket, request) => {
     let code = url.searchParams.get('code');
     let room;
     if (code == null) {
-        code = Math.floor(Math.random() * 0x1000000).toString(16);
-        socket.send(code);
-        rooms.set(code, room = { clients: [] });
+        [code, room] = new_room();
     }
     else {
         room = rooms.get(code);
-        if (room == null || room.clients.length == 2)
-            return socket.close();
+        if (room == null || room.clients.length == 2) {
+            [code, room] = new_room();
+        }
     }
+    send(socket, RoomCode, code);
     let client = { socket };
     room.clients.push(client);
     socket.on('close', () => {

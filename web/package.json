@@ -8,6 +8,7 @@
     "lint": "vue-cli-service lint --no-fix"
   },
   "dependencies": {
+    "@mfro/ts-common": "mfro/ts-common",
     "@mfro/vue-ui": "mfro/vue-ui",
     "core-js": "^3.6.5",
     "vue": "^3.0.0"

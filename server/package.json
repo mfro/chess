@@ -8,6 +8,7 @@
     "watch": "rollup -c rollup.config.js --watch"
   },
   "dependencies": {
+    "@mfro/ts-common": "mfro/ts-common",
     "ws": "^7.3.0"
   },
   "devDependencies": {

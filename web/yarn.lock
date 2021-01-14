@@ -887,6 +887,10 @@
     cssnano-preset-default "^4.0.0"
     postcss "^7.0.0"
 
+"@mfro/ts-common@mfro/ts-common":
+  version "1.0.0"
+  resolved "git+ssh://git@github.com/mfro/ts-common.git#561543d375cb9e89e3fdf14ed00f724146b25d6d"
+
 "@mfro/vue-ui@mfro/vue-ui":
   version "1.0.1"
   resolved "https://codeload.github.com/mfro/vue-ui/tar.gz/9b06a4853660c0519d0155e7db28cda19e3a9202"
