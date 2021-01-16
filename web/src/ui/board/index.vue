@@ -51,7 +51,7 @@
 <script>
 import { computed, provide, shallowRef, toRef, watch, watchEffect } from 'vue';
 
-import { Color, Position, Rules } from '@/chess';
+import { Color, Position, Rules, Piece } from '@/chess';
 import * as sound_assets from '@/assets/sound';
 
 import piece from './piece';
@@ -193,7 +193,7 @@ export default {
       if (!moving.value) return;
       if (position && moving.value != position) {
         localMove.value = props.value.pieces.get(moving.value);
-        emit('move', { from: moving.value, to: position });
+        emit('move', { from: moving.value, to: position, promote: Piece.queen });
       }
 
       moving.value = null;

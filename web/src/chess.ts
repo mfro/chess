@@ -252,23 +252,27 @@ export namespace Board {
 export interface Move {
   from: Position;
   to: Position;
-  promotion?: PieceKind;
+  promote?: PieceKind;
 }
 
 export namespace Move {
   export type Saved = {
     from: number;
     to: number;
-    promotion: PieceKind | null;
+    promote: PieceKind | null;
   };
 
+  type NormalResult = { board: Board; captured?: Piece; promoted?: Piece };
+  type CastleResult = { board: Board; castle: typeof Piece.king | typeof Piece.queen };
+  type EnPassantResult = { board: Board; captured: Piece; en_passant: true };
+
   export type Result =
-    | { board: Board; capture?: Piece }
-    | { board: Board; castle: typeof Piece.king | typeof Piece.queen }
-    | { board: Board; capture: Piece; en_passant: true };
+    | NormalResult
+    | CastleResult
+    | EnPassantResult;
 
   export function validate(board: Board, move: Move): Result | null {
-    function normal(): Result {
+    function normal(): NormalResult {
       assert(piece != null, 'x');
 
       board = Board.copy(board);
@@ -303,20 +307,10 @@ export namespace Move {
 
       board.next = piece.color == Color.white ? Color.black : Color.white;
 
-      return { board, capture };
+      return { board, captured: capture };
     }
 
-    function en_passant(capture: Piece): Result {
-      const { board } = normal();
-
-      const pair = [...board.pieces].find(pair => pair[1] == capture);
-      assert(pair != null, 'invalid move');
-      board.pieces.delete(pair[0]);
-
-      return { board, capture, en_passant: true };
-    }
-
-    function castle(castle: typeof Piece.king | typeof Piece.queen): Result {
+    function castle(castle: typeof Piece.king | typeof Piece.queen): CastleResult {
       assert(piece != null, 'x');
 
       const { board } = normal();
@@ -342,6 +336,36 @@ export namespace Move {
       return { board, castle };
     }
 
+    function en_passant(capture: Piece): EnPassantResult {
+      const { board } = normal();
+
+      const pair = [...board.pieces].find(pair => pair[1] == capture);
+      assert(pair != null, 'invalid move');
+      board.pieces.delete(pair[0]);
+
+      return { board, captured: capture, en_passant: true };
+    }
+
+    function promotion(): NormalResult | null {
+      assert(piece != null, 'x');
+
+      const { board, captured } = normal();
+
+      let promoted;
+      if (move.to.rank == 1 || move.to.rank == 8) {
+        if (!move.promote)
+          return null;
+
+        promoted = piece;
+        board.pieces.set(move.to, {
+          color: piece.color,
+          kind: move.promote,
+        });
+      }
+
+      return { board, captured, promoted };
+    }
+
     const piece = board.pieces.get(move.from);
     if (piece == null)
       return null;
@@ -357,20 +381,29 @@ export namespace Move {
         const dir = piece.color == Color.white ? 1 : -1;
         const origin = piece.color == Color.white ? 2 : 7;
 
+        // if (move.to.rank == 1 || move.to.rank == 8) {
+        //   if (move.promote)
+        //     return promotion();
+
+        //   return null;
+        // }
+
         if (Offset.eq(offset, dir * 1, 0) && !capture)
-          return normal();
+          return promotion();
 
         if (Offset.eq(offset, dir * 2, 0) && !capture
           && move.from.rank == origin && !board.pieces.has(Position.add(move.from, dir * 1, 0)))
-          return normal();
+          return promotion();
 
         if (Offset.eq(offset, dir * 1, 1) || Offset.eq(offset, dir * 1, -1)) {
           if (capture)
-            return normal();
+            return promotion();
 
           const passe = board.pieces.get(Position.add(move.to, dir * -1, 0));
-          if (passe && ((piece.color == Color.white && board.black_passant[Position.files.indexOf(move.to.file)])
-            || (piece.color == Color.black && board.white_passant[Position.files.indexOf(move.to.file)])))
+          if (passe && ((piece.color == Color.white && move.from.rank == 5
+            && board.black_passant[Position.files.indexOf(move.to.file)])
+            || (piece.color == Color.black && move.from.rank == 4
+              && board.white_passant[Position.files.indexOf(move.to.file)])))
             return en_passant(passe);
         }
 
@@ -457,7 +490,7 @@ export namespace Move {
     return {
       from: Position.all.indexOf(move.from),
       to: Position.all.indexOf(move.to),
-      promotion: move.promotion ?? null,
+      promote: move.promote ?? null,
     };
   }
 
@@ -465,7 +498,7 @@ export namespace Move {
     return {
       from: Position.all[raw.from],
       to: Position.all[raw.to],
-      promotion: raw.promotion ?? undefined,
+      promote: raw.promote ?? undefined,
     };
   }
 }
@@ -489,7 +522,7 @@ export namespace Rules {
       const set = new Set();
 
       for (const to of Position.all) {
-        if (Move.resolve(board, { from, to })) {
+        if (Move.resolve(board, { from, to, promote: Piece.queen })) {
           set.add(to);
         }
       }

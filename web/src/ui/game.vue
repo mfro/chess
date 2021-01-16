@@ -1,6 +1,7 @@
 <template>
   <v-flex :column="profile" :align-center="profile" style="overflow: hidden">
     <board
+      style="align-self: start"
       :color="color"
       :value="lastMove?.result.board ?? board"
       :animate="animate"

@@ -144,4 +144,36 @@ app.use(framework);
 
 app.provide('remote', game);
 
+const scroll_lock = new Map<HTMLElement, { lock: boolean; consumed: boolean }>();
+app.directive('scroll-lock', {
+  beforeUpdate(el, binding) {
+    const ctx = scroll_lock.get(el);
+    assert(ctx != null, 'oop');
+
+    if (ctx.consumed) {
+      ctx.lock = el.scrollHeight == el.clientHeight + el.scrollTop;
+    }
+
+    ctx.consumed = false;
+  },
+
+  updated(el, binding) {
+    const ctx = scroll_lock.get(el);
+    assert(ctx != null, 'oop');
+
+    if (ctx.lock) {
+      el.scroll(0, el.scrollHeight - el.clientHeight);
+    }
+
+    ctx.consumed = true;
+  },
+
+  mounted(el, binding, vnode) {
+    scroll_lock.set(el, {
+      lock: el.scrollHeight == el.clientHeight + el.scrollTop,
+      consumed: true,
+    });
+  },
+});
+
 app.mount('#app');

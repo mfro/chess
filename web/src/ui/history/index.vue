@@ -1,12 +1,18 @@
 <template>
-  <v-flex column class="history">
-    <v-flex align-baseline v-for="(row, i) in rows" :key="i" class="pa-1">
-      <v-text>{{ i + 1 }}.</v-text>
+  <v-flex column class="history py-1" v-scroll-lock>
+    <v-flex
+      align-baseline
+      v-for="(row, i) in rows"
+      :key="i"
+      class="row px-4"
+      :class="{ even: i % 2 == 1 }"
+    >
+      <v-text style="width: 3ch">{{ i + 1 }}.</v-text>
 
       <v-button
         :text="row[0] != active"
         small
-        class="move ml-4"
+        class="move ml-2"
         @click="preview(row[0])"
       >
         <v-text bold body>{{ row[0].notation }}</v-text>
@@ -15,7 +21,7 @@
       <v-button
         :text="row[1] != active"
         small
-        class="move ml-4"
+        class="move ml-2"
         @click="preview(row[1])"
         v-if="row[1]"
       >

@@ -43,14 +43,15 @@ export function notate(board: Board, move: Move, result: Move.Result) {
         text += move.from.file + move.from.rank;
     }
 
-    if (result.capture) {
+    if (result.captured) {
       text += 'x';
     }
 
     text += move.to.file + move.to.rank;
 
-    if (move.promotion) {
-      text += letters.get(move.promotion);
+    if ('promoted' in result && result.promoted) {
+      assert(move.promote != null, 'invalid move');
+      text += letters.get(move.promote);
     }
   }
 
