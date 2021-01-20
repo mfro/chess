@@ -307,7 +307,10 @@ export namespace Move {
 
       board.next = piece.color == Color.white ? Color.black : Color.white;
 
-      return { board, captured: capture };
+      const result: Result = { board };
+      if (captured) result.captured = captured;
+
+      return result;
     }
 
     function castle(castle: typeof Piece.king | typeof Piece.queen): CastleResult {
@@ -349,29 +352,28 @@ export namespace Move {
     function promotion(): NormalResult | null {
       assert(piece != null, 'x');
 
-      const { board, captured } = normal();
+      const result = normal();
 
-      let promoted;
       if (move.to.rank == 1 || move.to.rank == 8) {
         if (!move.promote)
           return null;
 
-        promoted = piece;
+        result.promoted = piece;
         board.pieces.set(move.to, {
           color: piece.color,
           kind: move.promote,
         });
       }
 
-      return { board, captured, promoted };
+      return result;
     }
 
     const piece = board.pieces.get(move.from);
     if (piece == null)
       return null;
 
-    const capture = board.pieces.get(move.to);
-    if (capture && capture.color == piece.color)
+    const captured = board.pieces.get(move.to);
+    if (captured && captured.color == piece.color)
       return null;
 
     const offset = Position.offset(move.from, move.to);
@@ -381,22 +383,15 @@ export namespace Move {
         const dir = piece.color == Color.white ? 1 : -1;
         const origin = piece.color == Color.white ? 2 : 7;
 
-        // if (move.to.rank == 1 || move.to.rank == 8) {
-        //   if (move.promote)
-        //     return promotion();
-
-        //   return null;
-        // }
-
-        if (Offset.eq(offset, dir * 1, 0) && !capture)
+        if (Offset.eq(offset, dir * 1, 0) && !captured)
           return promotion();
 
-        if (Offset.eq(offset, dir * 2, 0) && !capture
+        if (Offset.eq(offset, dir * 2, 0) && !captured
           && move.from.rank == origin && !board.pieces.has(Position.add(move.from, dir * 1, 0)))
           return promotion();
 
         if (Offset.eq(offset, dir * 1, 1) || Offset.eq(offset, dir * 1, -1)) {
-          if (capture)
+          if (captured)
             return promotion();
 
           const passe = board.pieces.get(Position.add(move.to, dir * -1, 0));
@@ -515,24 +510,25 @@ export namespace Rules {
     return null;
   }
 
-  export function all_legal_moves(board: Board): Map<Position, Set<Position>> {
-    const map = new Map();
+  export function all_legal_moves(board: Board): Map<Position, Map<Position, Move.Result>> {
+    const all = new Map<Position, Map<Position, Move.Result>>();
 
     for (const from of board.pieces.keys()) {
-      const set = new Set();
+      const map = new Map<Position, Move.Result>();
 
       for (const to of Position.all) {
-        if (Move.resolve(board, { from, to, promote: Piece.queen })) {
-          set.add(to);
+        const result = Move.resolve(board, { from, to, promote: Piece.queen });
+        if (result != null) {
+          map.set(to, result);
         }
       }
 
-      if (set.size > 0) {
-        map.set(from, set);
+      if (map.size > 0) {
+        all.set(from, map);
       }
     }
 
-    return map;
+    return all;
   }
 
   export function is_threatened(board: Board, pos: Position, victim: Color) {

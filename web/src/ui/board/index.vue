@@ -36,7 +36,7 @@
       </position>
 
       <position
-        v-for="pos in legalMoves.get(moving) || []"
+        v-for="pos in legalMoves.get(moving)?.keys() || []"
         :key="pos"
         :value="pos"
       >
@@ -192,8 +192,17 @@ export default {
 
       if (!moving.value) return;
       if (position && moving.value != position) {
-        localMove.value = props.value.pieces.get(moving.value);
-        emit('move', { from: moving.value, to: position, promote: Piece.queen });
+        const piece = props.value.pieces.get(moving.value);
+        localMove.value = piece;
+
+        const move = { from: moving.value, to: position };
+
+        const result = legalMoves.value.get(moving.value)?.get(position);
+        if (result && result.promoted) {
+          move.promote = Piece.queen;
+        }
+
+        emit('move', move);
       }
 
       moving.value = null;

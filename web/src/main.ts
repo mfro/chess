@@ -87,10 +87,10 @@ function remote_game() {
 
   if (game.code) {
     socket = new WebSocket(`${base}?code=${game.code}`);
-    game.state = 0;
+    game.state = 1;
   } else {
     socket = new WebSocket(`${base}`);
-    game.state = 1;
+    game.state = 0;
   }
 
   on(receive(socket, RoomCode), code => {
