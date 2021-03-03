@@ -4,7 +4,7 @@ import { framework } from '@mfro/vue-ui';
 
 import { on } from '@mfro/ts-common/events';
 import { assert } from '@mfro/ts-common/assert';
-import { Packet, receive, send } from '@mfro/ts-common/sockets';
+import { Packet, receive, send } from '@mfro/ts-common/sockets/client';
 
 import main from './main.vue';
 
@@ -87,7 +87,7 @@ function remote_game() {
 
   if (game.code) {
     socket = new WebSocket(`${base}?code=${game.code}`);
-    game.state = 1;
+    game.state = 0;
   } else {
     socket = new WebSocket(`${base}`);
     game.state = 0;
