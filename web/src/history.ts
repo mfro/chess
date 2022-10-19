@@ -23,7 +23,7 @@ export function notate(board: Board, move: Move, result: Move.Result) {
   assert(piece != null, 'invalid move');
 
   if ('castle' in result) {
-    if (result.castle == Piece.king)
+    if (move.to.file == 'g')
       text = '0-0';
     else
       text = '0-0-0';

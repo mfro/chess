@@ -51,9 +51,9 @@ export namespace Position {
     return { ranks: r, files: f };
   }
 
-  export function slide(from: Position, to: Position): Position[];
-  export function slide(from: Position, offset: Offset): Position[];
-  export function slide(from: Position, to: Position | Offset): Position[] {
+  export function slide(from: Position, to: Position, inclusive?: boolean): Position[];
+  export function slide(from: Position, offset: Offset, inclusive?: boolean): Position[];
+  export function slide(from: Position, to: Position | Offset, inclusive = false): Position[] {
     let o;
     if ('rank' in to)
       o = offset(from, to);
@@ -70,7 +70,7 @@ export namespace Position {
 
     const result = [];
 
-    for (let i = 1; i < count; ++i) {
+    for (let i = (inclusive ? 0 : 1); inclusive ? (i <= count) : i < count; ++i) {
       result.push(by_rank[ranks.indexOf(from.rank) + (i * sR)][files.indexOf(from.file) + (i * sF)]);
     }
 
@@ -262,17 +262,17 @@ export namespace Move {
     promote: PieceKind | null;
   };
 
-  type NormalResult = { board: Board; captured?: Piece; promoted?: Piece };
-  type CastleResult = { board: Board; castle: typeof Piece.king | typeof Piece.queen };
-  type EnPassantResult = { board: Board; captured: Piece; en_passant: true };
+  type BasicResult = { board: Board; captured?: Piece; promoted?: Piece };
+  type CastleResult = { board: Board; castle: true };
+  type EnPassantResult = { board: Board; en_passant: true; captured: Piece };
 
   export type Result =
-    | NormalResult
+    | BasicResult
     | CastleResult
     | EnPassantResult;
 
   export function validate(board: Board, move: Move): Result | null {
-    function normal(): NormalResult {
+    function normal(): BasicResult {
       assert(piece != null, 'x');
 
       board = Board.copy(board);
@@ -313,30 +313,22 @@ export namespace Move {
       return result;
     }
 
-    function castle(castle: typeof Piece.king | typeof Piece.queen): CastleResult {
+    function castle(expected_from: Position, rook_from: Position, rook_to: Position): CastleResult | null {
       assert(piece != null, 'x');
 
-      const { board } = normal();
+      if (move.from != expected_from
+        || Position.slide(move.from, move.to, true).some(p => Rules.is_threatened(board, p, piece.color))
+        || Position.slide(move.from, rook_from, false).some(p => board.pieces.has(p)))
+        return null;
 
-      let from, to;
-      if (piece.color == Color.white) {
-        if (castle == Piece.king) {
-          [from, to] = [Position.h1, Position.f1];
-        } else {
-          [from, to] = [Position.a1, Position.d1];
-        }
-      } else if (castle == Piece.king) {
-        [from, to] = [Position.h8, Position.f8];
-      } else {
-        [from, to] = [Position.a8, Position.d8];
-      }
+      const result = normal();
 
-      const rook = board.pieces.get(from);
+      const rook = result.board.pieces.get(rook_from);
       assert(rook != null, 'invalid castle state');
-      board.pieces.delete(from);
-      board.pieces.set(to, rook);
+      result.board.pieces.delete(rook_from);
+      result.board.pieces.set(rook_to, rook);
 
-      return { board, castle };
+      return { board: result.board, castle: true };
     }
 
     function en_passant(capture: Piece): EnPassantResult {
@@ -349,7 +341,7 @@ export namespace Move {
       return { board, captured: capture, en_passant: true };
     }
 
-    function promotion(): NormalResult | null {
+    function promotion(): BasicResult | null {
       assert(piece != null, 'x');
 
       const result = normal();
@@ -436,27 +428,19 @@ export namespace Move {
         if (Math.abs(offset.ranks) <= 1 && Math.abs(offset.files) <= 1)
           return normal();
 
-        if (Math.abs(offset.files) == 2 && Math.abs(offset.ranks) == 0) {
-          if (Rules.is_threatened(board, move.from, piece.color) || Rules.is_threatened(board, move.to, piece.color)
-            || !Position.slide(move.from, move.to).every(p => !Rules.is_threatened(board, p, piece.color)))
-            return null;
-
+        if (offset.ranks == 0) {
           if (offset.files == 2) {
-            if (piece.color == Color.white && board.white_kingside_castle
-              && Position.slide(Position.e1, Position.h1).every(p => !board.pieces.has(p)))
-              return castle(Piece.king);
+            if (piece.color == Color.white && board.white_kingside_castle)
+              return castle(Position.e1, Position.h1, Position.f1);
 
-            if (piece.color == Color.black && board.black_kingside_castle
-              && Position.slide(Position.e8, Position.h8).every(p => !board.pieces.has(p)))
-              return castle(Piece.king);
-          } else {
-            if (piece.color == Color.white && board.white_queenside_castle
-              && Position.slide(Position.e1, Position.a1).every(p => !board.pieces.has(p)))
-              return castle(Piece.queen);
+            if (piece.color == Color.black && board.black_kingside_castle)
+              return castle(Position.e8, Position.h8, Position.f8);
+          } else if (offset.files == -2) {
+            if (piece.color == Color.white && board.white_queenside_castle)
+              return castle(Position.e1, Position.a1, Position.d1);
 
-            if (piece.color == Color.black && board.black_queenside_castle
-              && Position.slide(Position.e8, Position.a8).every(p => !board.pieces.has(p)))
-              return castle(Piece.queen);
+            if (piece.color == Color.black && board.black_queenside_castle)
+              return castle(Position.e8, Position.a8, Position.d8);
           }
         }
 
