@@ -24,10 +24,12 @@ export default {
     return {
       style: computed(() => {
         let y = Position.ranks.indexOf(props.value.rank);
-        const x = Position.files.indexOf(props.value.file);
+        let x = Position.files.indexOf(props.value.file);
 
         if (color.value == Color.white)
           y = 7 - y;
+        else
+          x = 7 - x;
 
         return {
           width: `${size.value}px`,

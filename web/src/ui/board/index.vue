@@ -1,49 +1,47 @@
 <template>
-  <div
-    class="board"
-    :class="{ grabbing: moving, grab: value.pieces.has(hover) }"
-    @dragstart.prevent
-    @contextmenu.prevent
-    @mouseup="onMouseUp"
-    @mousemove="onMouseMove"
-    @mousedown="onMouseDown"
-    @mouseleave="onMouseLeave"
-    @touchend.prevent="onTouchEnd"
-    @touchmove.prevent="onTouchMove"
-    @touchstart.prevent="onTouchStart"
-  >
-    <div class="body" ref="root">
-      <template v-for="square in squares" :key="square.file + square.rank">
-        <square
-          :position="square"
-          :active="
-            square == moving ||
-            square == hover ||
-            square == lastMove?.move.from ||
-            square == lastMove?.move.to
-          "
-        />
+  <div class="board"
+       :class="{ grabbing: moving, grab: value.pieces.has(hover) }"
+       @dragstart.prevent
+       @contextmenu.prevent
+       @mouseup="onMouseUp"
+       @mousemove="onMouseMove"
+       @mousedown="onMouseDown"
+       @mouseleave="onMouseLeave"
+       @touchend.prevent="onTouchEnd"
+       @touchmove.prevent="onTouchMove"
+       @touchstart.prevent="onTouchStart">
+    <div class="body"
+         ref="root">
+      <template v-for="square in squares"
+                :key="square.file + square.rank">
+        <square :position="square"
+                :active="
+                  square == moving ||
+                  square == hover ||
+                  square == lastMove?.move.from ||
+                  square == lastMove?.move.to
+                " />
       </template>
 
-      <position
-        v-for="[pos, piece] in pieces"
-        :key="piece"
-        :value="pos"
-        :live="animate && piece != localMove"
-        style="pointer-events: none"
-      >
-        <piece :value="piece" v-if="pos != moving" />
+      <position v-for="[pos, piece] in pieces"
+                :key="piece"
+                :value="pos"
+                :live="animate && piece != localMove"
+                style="pointer-events: none">
+        <piece :value="piece"
+               v-if="pos != moving" />
       </position>
 
-      <position
-        v-for="pos in legalMoves.get(moving)?.keys() || []"
-        :key="pos"
-        :value="pos"
-      >
-        <div class="legal-move" :class="{ take: value.pieces.has(pos) }" />
+      <position v-for="pos in legalMoves.get(moving)?.keys() || []"
+                :key="pos"
+                :value="pos">
+        <div class="legal-move"
+             :class="{ take: value.pieces.has(pos) }" />
       </position>
 
-      <grab-overlay :root="root" :moving="moving" :board="value" />
+      <grab-overlay :root="root"
+                    :moving="moving"
+                    :board="value" />
     </div>
   </div>
 </template>
@@ -103,6 +101,9 @@ export default {
     const squares = computed(() => {
       const ranks = Position.by_rank.slice();
       if (props.color == Color.white) ranks.reverse();
+      else {
+        for (let i = 0; i < ranks.length; ++i) ranks[i] = ranks[i].slice().reverse();
+      }
       return [].concat(...ranks);
     });
 
@@ -160,8 +161,11 @@ export default {
       x = Math.floor((x - root.value.offsetLeft) / root.value.offsetWidth * 8);
       y = Math.floor((y - root.value.offsetTop) / root.value.offsetHeight * 8);
 
-      if (props.color == Color.white)
+      if (props.color == Color.white) {
         y = 7 - y;
+      } else {
+        x = 7 - x;
+      }
 
       if (x < 0 || x > 7 || y < 0 || y > 7)
         return null;

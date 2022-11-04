@@ -4,8 +4,6 @@ import WebSocket from 'ws';
 
 import { Packet, send } from '@mfro/ts-common/sockets';
 
-// import { RoomCode } from 'common/sockets';
-
 const RoomCode = Packet.define<string>();
 
 let port = process.argv[2] ? parseInt(process.argv[2]) : 8081;
