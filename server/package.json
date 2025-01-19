@@ -2,7 +2,7 @@
   "name": "@mfro/chess-server",
   "version": "0.1.0",
   "private": true,
-  "main": "main.js",
+  "main": "build/main.js",
   "scripts": {
     "build": "rollup -c rollup.config.js",
     "watch": "rollup -c rollup.config.js --watch"
